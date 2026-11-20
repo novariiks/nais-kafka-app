@@ -1,0 +1,31 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: nais-kafka-frontend
+  namespace: flais
+  labels:
+    team: flais
+spec:
+  port: 8080
+  ingresses:
+    - https://nais-kafka.test.novari.cloud.nais.io
+  replicas:
+    min: 1
+    max: 2
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+  env:
+    - name: BACKEND_HOST
+      value: nais-kafka-consumer
+  accessPolicy:
+    outbound:
+      rules:
+        - application: nais-kafka-consumer
+  liveness:
+    path: /healthz
+  readiness:
+    path: /readyz
