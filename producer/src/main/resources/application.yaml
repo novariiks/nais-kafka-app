@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: nais-kafka-producer
+  main:
+    web-application-type: none
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      acks: all
+producer:
+  events-per-run: ${PRODUCER_EVENTS_PER_RUN:10}
+  instance: ${HOSTNAME:local}
