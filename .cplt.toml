@@ -1,0 +1,8 @@
+# Sandbox permissions for agents running under cplt.
+# Approve once with: cplt trust accept allow_localhost_any allow_jvm_attach
+
+[propose]
+# Gradle daemon, test workers and EmbeddedKafka talk over random localhost ports.
+allow_localhost_any = true
+# Lets tests run with the OpenTelemetry Java agent (-PotelAgent=...).
+allow_jvm_attach = true
