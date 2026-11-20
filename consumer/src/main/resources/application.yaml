@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: nais-kafka-consumer
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: nais-kafka-consumer
+      # A new consumer group starts from the oldest retained event.
+      auto-offset-reset: earliest
+server:
+  shutdown: graceful
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+consumer:
+  instance: ${HOSTNAME:local}
