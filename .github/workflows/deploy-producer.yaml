@@ -1,0 +1,74 @@
+name: Deploy producer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'producer/**'
+      - 'events/**'
+      - '.nais/topic.yaml'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - '.dockerignore'
+      - '.github/workflows/deploy-producer.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-producer
+  cancel-in-progress: false
+
+env:
+  NAIS_ENVIRONMENT: test
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and push image
+        uses: nais/docker-build-push@6394144a53cad0332745f24a8302f5efaf81719a # v1.0.0
+        id: image
+        with:
+          team: flais
+          tenant: novari
+          dockerfile: producer/Dockerfile
+          docker_context: .
+          image_suffix: producer
+          cache_from: type=gha,scope=producer
+          cache_to: type=gha,mode=max,scope=producer
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE: ${{ needs.build.outputs.image }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: nais/setup@fb8692f65df9c904e2cdac5d395630ac876abdcf # v1.0.3
+        with:
+          team: flais
+      # Both Kafka workloads apply the topic, so either can be deployed first.
+      - name: Apply Kafka topic
+        run: nais apply .nais/topic.yaml --environment "$NAIS_ENVIRONMENT" --wait
+      - name: Deploy producer
+        run: >-
+          nais apply producer/.nais/naisjob.yaml
+          --environment "$NAIS_ENVIRONMENT"
+          --set spec.image="$IMAGE"
+          --wait

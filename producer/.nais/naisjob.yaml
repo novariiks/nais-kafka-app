@@ -1,0 +1,31 @@
+apiVersion: nais.io/v1
+kind: Naisjob
+metadata:
+  name: nais-kafka-producer
+  namespace: flais
+  labels:
+    team: flais
+spec:
+  schedule: "*/2 * * * *"
+  timeZone: Europe/Oslo
+  # A run takes seconds; never start one while another is still going.
+  concurrencyPolicy: Forbid
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: nais
+  kafka:
+    pool: novari-test
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: java
