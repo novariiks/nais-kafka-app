@@ -11,3 +11,6 @@ spring:
       trust-store-location: file:${KAFKA_TRUSTSTORE_PATH}
       trust-store-type: JKS
       trust-store-password: ${KAFKA_CREDSTORE_PASSWORD}
+consumer:
+  grafana:
+    url: https://grafana.novari.cloud.nais.io

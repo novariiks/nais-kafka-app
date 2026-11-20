@@ -15,6 +15,8 @@ class EventController(
     private val live: LiveEvents,
     @param:Value("\${consumer.instance}") private val instance: String,
     @param:Value("\${spring.kafka.consumer.group-id}") private val groupId: String,
+    @param:Value("\${consumer.grafana.url}") private val grafanaUrl: String,
+    @param:Value("\${consumer.grafana.tempo-datasource}") private val tempoDatasource: String,
 ) {
     @GetMapping("/events")
     fun history(): List<ConsumedEvent> = recent.history()
@@ -29,5 +31,7 @@ class EventController(
         "topic" to EVENTS_TOPIC,
         "groupId" to groupId,
         "consumedPerPartition" to recent.countsPerPartition(),
+        // Lets the UI link each event's trace id to Grafana Explore.
+        "grafana" to mapOf("url" to grafanaUrl, "tempoDatasource" to tempoDatasource),
     )
 }
