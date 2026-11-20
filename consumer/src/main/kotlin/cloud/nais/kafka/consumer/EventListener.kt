@@ -4,9 +4,12 @@ import cloud.nais.kafka.events.EVENTS_TOPIC
 import cloud.nais.kafka.events.KafkaEvent
 import io.opentelemetry.api.trace.Span
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.TopicPartition
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.kafka.annotation.KafkaListener
+import org.springframework.kafka.listener.AbstractConsumerSeekAware
+import org.springframework.kafka.listener.ConsumerSeekAware.ConsumerSeekCallback
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 import java.time.Instant
@@ -15,9 +18,21 @@ import java.time.Instant
 class EventListener(
     private val json: JsonMapper,
     private val recent: RecentEvents,
+    private val live: LiveEvents,
     @param:Value("\${consumer.instance}") private val instance: String,
-) {
+) : AbstractConsumerSeekAware() {
     private val log = LoggerFactory.getLogger(javaClass)
+
+    // State is in memory, so a restarted replica would show nothing until the next job run.
+    // Replaying the newest records of each assigned partition refills the window right away.
+    // RecentEvents drops records it already holds.
+    override fun onPartitionsAssigned(assignments: Map<TopicPartition, Long>, callback: ConsumerSeekCallback) {
+        super.onPartitionsAssigned(assignments, callback)
+        if (assignments.isEmpty()) return
+        val perPartition = (RecentEvents.CAPACITY + assignments.size - 1) / assignments.size
+        assignments.keys.forEach { callback.seekRelative(it.topic(), it.partition(), -perPartition.toLong(), false) }
+        log.info("Assigned {}; replaying up to {} records per partition", assignments.keys, perPartition)
+    }
 
     // The agent continues the producer's trace from the record headers,
     // so the current span here belongs to the trace started by the Naisjob.
@@ -25,16 +40,15 @@ class EventListener(
     fun consume(record: ConsumerRecord<String, String>) {
         val event = json.readValue(record.value(), KafkaEvent::class.java)
         val traceId = Span.current().spanContext.takeIf { it.isValid }?.traceId
-        recent.add(
-            ConsumedEvent(
-                event = event,
-                partition = record.partition(),
-                offset = record.offset(),
-                consumer = instance,
-                consumedAt = Instant.now(),
-                traceId = traceId,
-            ),
+        val consumed = ConsumedEvent(
+            event = event,
+            partition = record.partition(),
+            offset = record.offset(),
+            consumer = instance,
+            consumedAt = Instant.now(),
+            traceId = traceId,
         )
+        if (recent.add(consumed)) live.publish(consumed)
         log.debug("Consumed {} from partition {} offset {} (trace {})", event.id, record.partition(), record.offset(), traceId)
     }
 }
