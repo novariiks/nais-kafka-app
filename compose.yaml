@@ -64,6 +64,22 @@ services:
       lgtm:
         condition: service_started
 
+  # The UI on http://localhost:3000, proxying /api to the consumer.
+  frontend:
+    user: "101:101"
+    read_only: true
+    tmpfs:
+      - /tmp
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      BACKEND_HOST: consumer:8080
+    ports:
+      - "127.0.0.1:3000:8080"
+    depends_on:
+      - consumer
+
   # Publishes one run and exits, like the Naisjob. Run again with:
   #   docker compose run --rm producer
   producer:
