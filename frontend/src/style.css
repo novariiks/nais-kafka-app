@@ -1,0 +1,107 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --color-pine-950: #12392f;
+  --color-pine-800: #245641;
+  --color-pine-600: #4b775c;
+}
+
+@layer base {
+  body { @apply m-0 bg-slate-50 font-sans text-pine-950; }
+  a { @apply outline-offset-4; }
+}
+
+@layer components {
+  .app-shell { @apply flex h-dvh min-h-[600px]; }
+  .sidebar { @apply flex w-[272px] shrink-0 flex-col bg-pine-950 px-6 py-8 text-emerald-50; }
+  .brand { @apply flex items-center gap-2 text-2xl font-bold tracking-tight no-underline; }
+  .brand-mark { @apply mr-1 grid size-10 place-items-center rounded-xl bg-lime-200 text-3xl text-pine-950; }
+  .brand-light { @apply font-normal text-emerald-100/70; }
+  .workspace-label { @apply mt-12 mb-4 text-xs font-bold tracking-[.16em] text-emerald-100/70; }
+  .channel { @apply flex items-center gap-3 rounded-lg px-3 py-3; }
+  .channel > span:first-child { @apply text-2xl text-emerald-100/70; }
+  .active { @apply bg-white/10; }
+  .channel-badge { @apply ml-auto rounded border border-lime-200/40 px-1.5 py-0.5 text-xs tracking-wider text-lime-200; }
+  .sidebar-description { @apply mx-3 my-5 text-sm leading-7 text-emerald-100/70; }
+  .stack { @apply mt-auto; }
+  .stack .workspace-label { @apply mt-7; }
+  .stack > div:not(.workspace-label) { @apply my-5 flex items-center gap-3 text-sm; }
+  .stack-symbol { @apply grid size-9 place-items-center rounded-lg border border-emerald-100/30 font-bold text-lime-200; }
+  .stack small { @apply mt-1 block text-xs text-emerald-100/70; }
+  .sidebar-footer { @apply mt-6 border-t border-white/15 pt-5 text-sm leading-7; }
+  .sidebar-footer span { @apply text-emerald-100/70; }
+  main { @apply flex min-w-0 flex-1 flex-col; }
+  .topbar { @apply flex h-[84px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-10; }
+  .topbar > div { @apply flex items-center gap-3; }
+  .hash { @apply text-3xl text-slate-400; }
+  .divider { @apply mx-1 h-5 border-l border-slate-200; }
+  .topic { @apply text-sm text-slate-500; }
+  .connection { @apply flex items-center gap-2 whitespace-nowrap text-sm text-amber-700; }
+  .connection i { @apply size-2 rounded-full bg-amber-500; }
+  .connection.online { @apply text-pine-600; }
+  .connection.online i { @apply bg-green-600; }
+  .conversation { @apply flex-1 overflow-auto px-[7%] pt-10; }
+  .eyebrow { @apply text-xs font-bold tracking-[.16em] text-pine-600; }
+  .welcome h1 { @apply my-3 text-5xl font-bold tracking-tight; }
+  .welcome > p { @apply text-base text-slate-500; }
+  .journey { @apply mt-7 mb-9 flex flex-wrap items-center gap-3; }
+  .journey span { @apply rounded border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs text-pine-600; }
+  .journey b { @apply text-sm font-normal text-slate-400; }
+  .conversation-divider { @apply flex items-center gap-4 text-xs text-slate-500; }
+  .conversation-divider::before, .conversation-divider::after { @apply h-px flex-1 bg-slate-200 content-['']; }
+  .messages { @apply py-5; }
+  .empty { @apply p-5 text-center text-slate-500; }
+  .empty-icon { @apply inline-grid size-12 place-items-center rounded-2xl bg-green-100 text-3xl text-pine-600; }
+  .empty h2 { @apply mt-3 mb-2 text-lg font-medium text-pine-600; }
+  .empty p { @apply text-sm; }
+  .message { @apply flex gap-3.5 py-3; }
+  .avatar { @apply grid size-10 shrink-0 place-items-center rounded-xl bg-green-100 text-sm font-bold text-pine-600; }
+  .message-content { @apply min-w-0; }
+  .message-meta { @apply flex items-baseline gap-3 text-sm; }
+  .message time { @apply text-xs text-slate-500; }
+  .message p { @apply my-1.5 text-base leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]; }
+  .reading { @apply text-xl font-semibold tabular-nums; }
+  .unit { @apply text-sm text-slate-500; }
+  .tags { @apply flex flex-wrap gap-1.5 font-mono text-xs text-slate-500; }
+  .tags > * { @apply rounded border border-slate-200 bg-white px-1.5 py-0.5; }
+  .tags a { @apply border-green-200 bg-green-50 text-pine-600 no-underline hover:border-pine-600; }
+  .stats { @apply mb-8 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3; }
+  .stat { @apply flex flex-col gap-1 rounded-xl border border-slate-200 bg-white px-4 py-3; }
+  .stat-label { @apply text-xs font-bold tracking-[.12em] text-pine-600 uppercase; }
+  .stat strong { @apply text-2xl tabular-nums; }
+  .stat small { @apply text-xs text-slate-500; }
+  .mono { @apply font-mono; }
+  .composer-area { @apply bg-slate-50 px-[7%] pt-3.5 pb-5; }
+  .bottom-note { @apply flex justify-between gap-4 px-1 pt-3 text-xs text-slate-500; }
+  .backend-instance { @apply max-w-[40%] truncate font-mono; }
+  .error { @apply mb-3 text-sm leading-relaxed text-red-700; }
+}
+
+@media (min-width:1500px) {
+  .conversation, .composer-area { @apply px-[12%]; }
+}
+@media (max-width:850px) {
+  .sidebar { @apply w-[210px] px-4 py-6; }
+  .topbar { @apply px-6; }
+  .topic, .divider { @apply hidden; }
+  .conversation { @apply px-[6%] pt-7; }
+  .composer-area { @apply px-[6%] py-3; }
+  .journey { @apply gap-1.5; }
+  .welcome h1 { @apply text-4xl; }
+}
+@media (max-width:600px) {
+  .app-shell { @apply min-h-[500px]; }
+  .sidebar { @apply hidden; }
+  .topbar { @apply h-16 px-5; }
+  .conversation { @apply px-5 pt-6; }
+  .welcome h1 { @apply text-4xl; }
+  .welcome > p { @apply text-sm; }
+  .journey { @apply my-6 gap-1; }
+  .journey span { @apply px-1.5 py-1 text-xs; }
+  .composer-area { @apply px-4 py-3; }
+  .backend-instance { @apply hidden; }
+}
+@media (prefers-reduced-motion:reduce) {
+  * { scroll-behavior: auto !important; }
+}
