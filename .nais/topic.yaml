@@ -1,0 +1,22 @@
+apiVersion: kafka.nais.io/v1
+kind: Topic
+metadata:
+  # Nais prefixes the team, so clients use flais.nais-kafka-events.
+  name: nais-kafka-events
+  namespace: flais
+  labels:
+    team: flais
+spec:
+  pool: novari-test
+  config:
+    cleanupPolicy: delete
+    # Records are keyed by device, so each device stays ordered within one partition.
+    partitions: 3
+    retentionHours: 24
+  acl:
+    - team: flais
+      application: nais-kafka-producer
+      access: write
+    - team: flais
+      application: nais-kafka-consumer
+      access: read
