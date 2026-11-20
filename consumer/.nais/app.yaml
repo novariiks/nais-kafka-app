@@ -1,0 +1,46 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: nais-kafka-consumer
+  namespace: flais
+  labels:
+    team: flais
+spec:
+  port: 8080
+  # Recent events live in memory, so one replica shows the whole picture.
+  replicas:
+    min: 1
+    max: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 384Mi
+    limits:
+      memory: 768Mi
+  env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: nais
+  kafka:
+    pool: novari-test
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: java
+  # No ingress: only the frontend reaches the API.
+  accessPolicy:
+    inbound:
+      rules:
+        - application: nais-kafka-frontend
+  startup:
+    path: /actuator/health/liveness
+    initialDelay: 10
+    periodSeconds: 5
+    failureThreshold: 30
+  liveness:
+    path: /actuator/health/liveness
+  readiness:
+    path: /actuator/health/readiness
+  prometheus:
+    enabled: true
+    path: /actuator/prometheus
+  terminationGracePeriodSeconds: 30
