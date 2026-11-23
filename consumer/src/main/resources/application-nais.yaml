@@ -14,3 +14,6 @@ spring:
 consumer:
   grafana:
     url: https://grafana.novari.cloud.nais.io
+    # Tempo for the test environment, from tracesDataSource.byEnvironment.test in
+    # https://grafana.novari.cloud.nais.io/api/plugins/nais-apm-app/settings
+    tempo-datasource: ${GRAFANA_TEMPO_DATASOURCE:P39EF045B9F172D65}
