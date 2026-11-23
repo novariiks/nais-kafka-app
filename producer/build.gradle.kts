@@ -19,5 +19,18 @@ dependencies {
     testImplementation("org.springframework.kafka:spring-kafka-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
-tasks.test { useJUnitPlatform() }
+tasks.test {
+    useJUnitPlatform()
+    // ./gradlew :producer:test -PotelAgent=build/otel-agent.jar
+    // runs the tests with the OpenTelemetry agent and prints spans to the log.
+    providers.gradleProperty("otelAgent").orNull?.let { agent ->
+        // Relative paths are resolved from the repository root, not the test working directory.
+        jvmArgs("-javaagent:${rootProject.file(agent).absolutePath}")
+        environment("OTEL_SERVICE_NAME", "nais-kafka-producer-test")
+        environment("OTEL_TRACES_EXPORTER", "logging")
+        environment("OTEL_METRICS_EXPORTER", "none")
+        environment("OTEL_LOGS_EXPORTER", "none")
+        testLogging { showStandardStreams = true }
+    }
+}
 tasks.bootJar { archiveFileName = "app.jar" }
