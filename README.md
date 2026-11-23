@@ -69,18 +69,20 @@ links.
    record key is the device id, so each device stays on one partition and in
    order. The run fails unless the broker acknowledges every record.
 
-2. **Tracing.** Each run opens a `producer run` span. Because the job starts a
-   new Kafka client every run, it first connects and fetches topic metadata in a
-   `kafka connect` span. Against Aiven this takes seconds, and doing it before
-   any event exists keeps that cost out of each event's latency. The agent's
-   Kafka instrumentation then makes each send a child span and writes the W3C
-   `traceparent` header into the record. The agent in the consumer continues
-   that trace when `@KafkaListener` processes the record, so job → Kafka →
-   consumer is one trace:
+2. **Tracing.** Each run opens a `producer run` span. Every run is a new JVM,
+   so first-time costs land in every run. The job pays them before creating any
+   event, each in its own span, so they stay out of the events' latency:
+   `kafka connect` opens the TLS connection and fetches topic metadata (seconds
+   against Aiven), and `json warmup` sets up Jackson (about a second in a pod).
+   The agent's Kafka instrumentation then makes each send a child span and
+   writes the W3C `traceparent` header into the record. The agent in the
+   consumer continues that trace when `@KafkaListener` processes the record, so
+   job → Kafka → consumer is one trace:
 
    ```text
    producer run                                  nais-kafka-producer
    ├── kafka connect
+   ├── json warmup
    └── flais.nais-kafka-events publish           one per event
        └── flais.nais-kafka-events process       nais-kafka-consumer
    ```
@@ -121,7 +123,7 @@ and run:
 
 The spans are printed to the terminal. The consumer test also asserts that the
 consumer's trace id is the producer's. The producer test shows the run's span
-structure, from `kafka connect` to `producer run`.
+structure, from `kafka connect` and `json warmup` to `producer run`.
 
 ## Deploy to Novari NAIS
 
@@ -175,9 +177,9 @@ nais apply frontend/.nais/app.yaml --environment test --team flais --set spec.im
 - Watch a batch arrive every two minutes. Compare partitions and offsets for the
   same device.
 - Open a trace link: one trace from the job's `producer run` to the consumer's
-  `process` spans. Compare `kafka connect`, the cost of starting a Kafka client
-  in a cron job, with the time the events spend in Kafka, shown as milliseconds
-  on each event in the UI.
+  `process` spans. Compare `kafka connect` and `json warmup`, the cost of
+  starting fresh in a cron job, with the time the events spend in Kafka, shown
+  as milliseconds on each event in the UI.
 - Restart the consumer pod. The feed refills from Kafka right away.
 - Look at consumer lag and Kafka client metrics on `/actuator/prometheus`.
 
