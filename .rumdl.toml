@@ -1,0 +1,9 @@
+# Markdown lint and format: `mise run lint:md`, or `rumdl fmt` to fix.
+# Rules: https://rumdl.dev
+
+[MD013]
+line-length = 80
+# `rumdl fmt` rewraps prose to the limit.
+reflow = true
+# Commands, trees and diagrams keep their own line breaks.
+code-blocks = false

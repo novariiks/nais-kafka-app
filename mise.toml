@@ -1,3 +1,8 @@
 [tools]
 java = "temurin-21"
 node = "22"
+rumdl = "0.3.5"
+
+[tasks."lint:md"]
+description = "Lint Markdown files (fix with: rumdl fmt)"
+run = "rumdl check ."
