@@ -1,11 +1,19 @@
+# Agent instructions
+
 ## Git & Commit Conventions
 
 ### Agent Boundaries
-- **No auto-commits:** Keep changes in the working tree unless explicitly told to commit.
-- **No branch switching:** Do not create, switch, or delete branches without permission.
+
+- **No auto-commits:** Keep changes in the working tree unless explicitly told
+  to commit.
+- **No branch switching:** Do not create, switch, or delete branches without
+  permission.
 
 ### Commit Format
-Adhere to [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):
+
+Adhere to
+[Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):
+
 ```text
 <type>[optional scope]: <description>
 [optional body]
@@ -13,6 +21,7 @@ Adhere to [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1
 ```
 
 ### Types
+
 - `feat`: New feature (SemVer `MINOR`)
 - `fix`: Bug fix (SemVer `PATCH`)
 - `docs`: Documentation updates
@@ -26,8 +35,11 @@ Adhere to [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1
 - `revert`: Reverting prior commits
 
 ### Rules
-- **Tone & Casing:** Imperative, present tense (e.g., `add auth`), lowercase, no trailing period.
+
+- **Tone & Casing:** Imperative, present tense (e.g., `add auth`), lowercase, no
+  trailing period.
 - **Length:** Subject line under 72 characters.
 - **Scopes:** Lowercase module name in parentheses (e.g., `feat(api):`).
-- **Breaking Changes:** Append `!` to the type/scope and include a `BREAKING CHANGE:` footer (SemVer `MAJOR`).
+- **Breaking Changes:** Append `!` to the type/scope and include a
+  `BREAKING CHANGE:` footer (SemVer `MAJOR`).
 - **Atomicity:** One logical change per commit.
