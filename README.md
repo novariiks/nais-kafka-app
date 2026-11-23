@@ -56,7 +56,14 @@ Without the agent, local runs record no trace ids, so the UI shows no trace link
 ## How it works
 
 1. **Producer (Naisjob).** Every two minutes the job starts, publishes 10 events and exits. Each event is a reading from one of six simulated devices. The record key is the device id, so each device stays on one partition and in order. The run fails unless the broker acknowledges every record.
-2. **Tracing.** Each run opens a `producer run` span. The agent's Kafka instrumentation makes each send a child span and writes the W3C `traceparent` header into the record. The agent in the consumer continues that trace when `@KafkaListener` processes the record, so job → Kafka → consumer is one trace.
+2. **Tracing.** Each run opens a `producer run` span. Because the job starts a new Kafka client every run, it first connects and fetches topic metadata in a `kafka connect` span. Against Aiven this takes seconds, and doing it before any event exists keeps that cost out of each event's latency. The agent's Kafka instrumentation then makes each send a child span and writes the W3C `traceparent` header into the record. The agent in the consumer continues that trace when `@KafkaListener` processes the record, so job → Kafka → consumer is one trace:
+
+   ```
+   producer run                                  nais-kafka-producer
+   ├── kafka connect
+   └── flais.nais-kafka-events publish           one per event
+       └── flais.nais-kafka-events process       nais-kafka-consumer
+   ```
 3. **Consumer.** The listener keeps the latest 100 events in memory, with partition, offset, consuming pod and trace id, and pushes new events to browsers over server-sent events. State is per replica, so the app runs one replica. On partition assignment it replays the newest records of each partition, so a restart shows events immediately instead of after the next job run.
 4. **Frontend.** Nginx serves the React app and proxies `/api` to the consumer, with buffering off for the event stream. Browsers deduplicate by event id and reconcile with `/api/events` every ten seconds.
 
@@ -77,9 +84,10 @@ To check trace propagation with the real agent, download the [OpenTelemetry Java
 
 ```sh
 ./gradlew :consumer:test --rerun -PotelAgent=build/otel-agent.jar
+./gradlew :producer:test --rerun -PotelAgent=build/otel-agent.jar
 ```
 
-The test then asserts that the consumer's trace id is the producer's, and the spans are printed to the test log.
+The spans are printed to the terminal. The consumer test also asserts that the consumer's trace id is the producer's. The producer test shows the run's span structure, from `kafka connect` to `producer run`.
 
 ## Deploy to Novari NAIS
 
@@ -93,6 +101,8 @@ Team `flais`, environment `test`, Kafka pool `novari-test`.
 | `frontend/.nais/app.yaml` | Application with ingress https://nais-kafka.test.novari.cloud.nais.io |
 
 Kafka credentials come from the variables NAIS injects (`KAFKA_BROKERS`, `KAFKA_KEYSTORE_PATH`, `KAFKA_TRUSTSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`), read by the `nais` Spring profile. Both Kafka workloads enable `observability.autoInstrumentation` for Java. Traces are in [Grafana](https://grafana.novari.cloud.nais.io/explore), for example with `{resource.service.name="nais-kafka-consumer"}`.
+
+The UI's trace links need the UID of the Tempo datasource for the environment. Each environment has its own; find them under `tracesDataSource.byEnvironment` in https://grafana.novari.cloud.nais.io/api/plugins/nais-apm-app/settings. The `nais` profile defaults to the one for `test`. For another environment, set `GRAFANA_TEMPO_DATASOURCE` in the consumer's manifest.
 
 ### GitHub Actions
 
@@ -116,7 +126,7 @@ nais apply frontend/.nais/app.yaml --environment test --team flais --set spec.im
 ## Demo ideas
 
 - Watch a batch arrive every two minutes. Compare partitions and offsets for the same device.
-- Open a trace link: one trace with `producer run`, a `publish` span per event and the consumer's `process` span.
+- Open a trace link: one trace from the job's `producer run` to the consumer's `process` spans. Compare `kafka connect`, the cost of starting a Kafka client in a cron job, with the time the events spend in Kafka, shown as milliseconds on each event in the UI.
 - Restart the consumer pod. The feed refills from Kafka right away.
 - Look at consumer lag and Kafka client metrics on `/actuator/prometheus`.
 
