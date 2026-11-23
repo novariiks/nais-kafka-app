@@ -3,6 +3,7 @@ package cloud.nais.kafka.producer
 import cloud.nais.kafka.events.EVENTS_TOPIC
 import cloud.nais.kafka.events.KafkaEvent
 import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.SpanBuilder
 import io.opentelemetry.api.trace.StatusCode
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
@@ -29,12 +30,25 @@ class PublishRun(
     // the trace context into the record headers.
     override fun run(args: ApplicationArguments) {
         val runId = UUID.randomUUID()
-        val span = tracer.spanBuilder("producer run")
-            .setAttribute("producer.run_id", runId.toString())
-            .setAttribute("producer.events", properties.eventsPerRun.toLong())
-            .startSpan()
+        traced("producer run", { setAttribute("producer.run_id", runId.toString()); setAttribute("producer.events", properties.eventsPerRun.toLong()) }) {
+            traced("kafka connect", { setAttribute("messaging.system", "kafka"); setAttribute("messaging.destination.name", EVENTS_TOPIC) }) { connect() }
+            publish(runId)
+        }
+    }
+
+    // The job starts a new Kafka client every run. Its first request opens the TLS
+    // connection and fetches topic metadata, which takes seconds. Doing that before any
+    // event exists keeps the cost in its own span and out of each event's latency.
+    private fun connect() {
+        val started = System.nanoTime()
+        val partitions = kafka.partitionsFor(EVENTS_TOPIC).size
+        log.info("Connected to Kafka in {} ms ({} has {} partitions)", (System.nanoTime() - started) / 1_000_000, EVENTS_TOPIC, partitions)
+    }
+
+    private fun traced(name: String, attributes: SpanBuilder.() -> Unit, block: () -> Unit) {
+        val span = tracer.spanBuilder(name).apply(attributes).startSpan()
         try {
-            span.makeCurrent().use { publish(runId) }
+            span.makeCurrent().use { block() }
         } catch (e: Exception) {
             span.recordException(e)
             span.setStatus(StatusCode.ERROR)
