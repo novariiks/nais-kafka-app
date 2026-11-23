@@ -32,18 +32,31 @@ class PublishRun(
         val runId = UUID.randomUUID()
         traced("producer run", { setAttribute("producer.run_id", runId.toString()); setAttribute("producer.events", properties.eventsPerRun.toLong()) }) {
             traced("kafka connect", { setAttribute("messaging.system", "kafka"); setAttribute("messaging.destination.name", EVENTS_TOPIC) }) { connect() }
+            traced("json warmup", {}) { warmUpJson(runId) }
             publish(runId)
         }
     }
 
-    // The job starts a new Kafka client every run. Its first request opens the TLS
-    // connection and fetches topic metadata, which takes seconds. Doing that before any
-    // event exists keeps the cost in its own span and out of each event's latency.
+    // Each run is a new JVM, so first-time costs land in every run. Paying them before
+    // any real event exists keeps each cost in its own span and out of the events' latency.
+
+    // The first request opens the TLS connection to Kafka and fetches topic metadata,
+    // which takes seconds against Aiven.
     private fun connect() {
         val started = System.nanoTime()
         val partitions = kafka.partitionsFor(EVENTS_TOPIC).size
-        log.info("Connected to Kafka in {} ms ({} has {} partitions)", (System.nanoTime() - started) / 1_000_000, EVENTS_TOPIC, partitions)
+        log.info("Connected to Kafka in {} ms ({} has {} partitions)", elapsedMs(started), EVENTS_TOPIC, partitions)
     }
+
+    // The first serialization sets up Jackson and its Kotlin module, which took about
+    // a second in Nais. The warmup event is serialized and discarded, never sent.
+    private fun warmUpJson(runId: UUID) {
+        val started = System.nanoTime()
+        json.writeValueAsString(newEvent(runId, sequence = 0))
+        log.info("Warmed up JSON serialization in {} ms", elapsedMs(started))
+    }
+
+    private fun elapsedMs(startedNanos: Long) = (System.nanoTime() - startedNanos) / 1_000_000
 
     private fun traced(name: String, attributes: SpanBuilder.() -> Unit, block: () -> Unit) {
         val span = tracer.spanBuilder(name).apply(attributes).startSpan()
@@ -60,15 +73,7 @@ class PublishRun(
 
     private fun publish(runId: UUID) {
         val sends = (1..properties.eventsPerRun).map { sequence ->
-            val event = KafkaEvent(
-                id = UUID.randomUUID(),
-                runId = runId,
-                sequence = sequence,
-                deviceId = "device-${Random.nextInt(1, properties.devices + 1)}",
-                value = Random.nextDouble(0.0, 100.0),
-                producedAt = Instant.now(),
-                producer = properties.instance,
-            )
+            val event = newEvent(runId, sequence)
             kafka.send(EVENTS_TOPIC, event.deviceId, json.writeValueAsString(event))
         }
         // Fail the run (and the Naisjob) unless the broker acknowledged every record.
@@ -76,4 +81,14 @@ class PublishRun(
         val partitions = results.groupingBy { it.recordMetadata.partition() }.eachCount().toSortedMap()
         log.info("Published {} events for run {} to {} (records per partition: {})", results.size, runId, EVENTS_TOPIC, partitions)
     }
+
+    private fun newEvent(runId: UUID, sequence: Int) = KafkaEvent(
+        id = UUID.randomUUID(),
+        runId = runId,
+        sequence = sequence,
+        deviceId = "device-${Random.nextInt(1, properties.devices + 1)}",
+        value = Random.nextDouble(0.0, 100.0),
+        producedAt = Instant.now(),
+        producer = properties.instance,
+    )
 }
