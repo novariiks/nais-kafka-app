@@ -149,6 +149,30 @@ in <https://grafana.novari.cloud.nais.io/api/plugins/nais-apm-app/settings>. The
 `nais` profile defaults to the one for `test`. For another environment, set
 `GRAFANA_TEMPO_DATASOURCE` in the consumer's manifest.
 
+### Logs
+
+With the `nais` profile, the producer and consumer log one JSON object per line
+(Spring Boot's `logstash` structured format), so Loki keeps multi-line messages
+such as stack traces and Kafka's config dump as one record. Locally they log
+plain text.
+
+Every line carries `level`, `logger_name` and `message`. The agent adds
+`trace_id` and `span_id`, which link logs and traces in Nais APM. The apps add:
+
+| Service | Fields |
+| --- | --- |
+| `nais-kafka-producer` | `run_id` on every line of a run; `kafka_connect_ms`, `json_warmup_ms`, `events`, `records_per_partition` |
+| `nais-kafka-consumer` | One line per event: `event_id`, `run_id`, `device_id`, `partition`, `offset`, `latency_ms`, `new` (false when replayed). `open_streams` when browsers connect or disconnect |
+
+Example queries in [Grafana](https://grafana.novari.cloud.nais.io/explore) with
+Loki:
+
+```logql
+{service_name="nais-kafka-producer", service_namespace="flais"} | json | kafka_connect_ms > 3000
+{service_name="nais-kafka-consumer", service_namespace="flais"} | json | device_id="device-5"
+{service_name="nais-kafka-consumer", service_namespace="flais"} | json | run_id="<run id from the UI>"
+```
+
 ### GitHub Actions
 
 Each deployable has its own workflow that builds the image with
