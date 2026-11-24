@@ -163,6 +163,7 @@ Every line carries `level`, `logger_name` and `message`. The agent adds
 | --- | --- |
 | `nais-kafka-producer` | `run_id` on every line of a run; `kafka_connect_ms`, `json_warmup_ms`, `events`, `records_per_partition` |
 | `nais-kafka-consumer` | One line per event: `event_id`, `run_id`, `device_id`, `partition`, `offset`, `latency_ms`, `new` (false when replayed). `open_streams` when browsers connect or disconnect |
+| `nais-kafka-frontend` | Nginx access log, one line per request: `method`, `path`, `query`, `status`, `bytes`, `request_time_s`, `upstream_time_s`, `trace_id` (from a `traceparent` header). `level` is `ERROR` for 5xx and `WARN` for 4xx. No client IPs or user agents |
 
 Example queries in [Grafana](https://grafana.novari.cloud.nais.io/explore) with
 Loki:
@@ -171,7 +172,13 @@ Loki:
 {service_name="nais-kafka-producer", service_namespace="flais"} | json | kafka_connect_ms > 3000
 {service_name="nais-kafka-consumer", service_namespace="flais"} | json | device_id="device-5"
 {service_name="nais-kafka-consumer", service_namespace="flais"} | json | run_id="<run id from the UI>"
+{service_name="nais-kafka-frontend", service_namespace="flais"} | json | path=~"/api/.*" | status >= 500
 ```
+
+Nginx writes an access log line when a request ends. The event stream
+(`/api/stream`) stays open, so its line appears when the browser disconnects,
+with `request_time_s` showing how long it was connected. Nginx's error log is
+plain text.
 
 ### GitHub Actions
 
