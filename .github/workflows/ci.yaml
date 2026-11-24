@@ -27,6 +27,28 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+  nginx:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build --file frontend/Dockerfile --tag frontend .
+      # The same check nginx runs at startup, so a broken config fails here, not in Nais.
+      - run: docker run --rm --env BACKEND_HOST=localhost:8080 frontend nginx -t
+      - name: Access log is one JSON object per request
+        run: |
+          # No consumer behind it: /api requests get 502, which logs at ERROR.
+          docker run --detach --name frontend --publish 8080:8080 --env BACKEND_HOST=localhost:9 frontend
+          curl --silent --show-error --fail --retry 10 --retry-connrefused --output /dev/null http://localhost:8080/
+          curl --silent --output /dev/null \
+            --header 'traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01' \
+            http://localhost:8080/api/info
+          docker logs frontend 2>/dev/null | tee access.log
+          # Every line must be JSON; jq fails on the first one that is not.
+          jq --exit-status --slurp 'length >= 2' access.log
+          jq --exit-status --slurp 'any(.path == "/" and .status == 200 and .level == "INFO")' access.log
+          jq --exit-status --slurp 'any(.path == "/api/info" and .status == 502 and .level == "ERROR"
+            and .trace_id == "0af7651916cd43dd8448eb211c80319c")' access.log
   markdown:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
