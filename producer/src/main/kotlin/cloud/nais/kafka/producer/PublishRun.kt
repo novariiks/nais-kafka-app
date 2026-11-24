@@ -6,6 +6,7 @@ import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.trace.SpanBuilder
 import io.opentelemetry.api.trace.StatusCode
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.kafka.core.KafkaTemplate
@@ -28,8 +29,13 @@ class PublishRun(
     // A cron job has no incoming request, so this span is the root of each run's trace.
     // The agent's Kafka instrumentation makes every send a child span and writes
     // the trace context into the record headers.
+    // run_id in the MDC tags every log line of the run, in Loki next to trace_id.
     override fun run(args: ApplicationArguments) {
         val runId = UUID.randomUUID()
+        MDC.putCloseable("run_id", runId.toString()).use { runTraced(runId) }
+    }
+
+    private fun runTraced(runId: UUID) {
         traced("producer run", { setAttribute("producer.run_id", runId.toString()); setAttribute("producer.events", properties.eventsPerRun.toLong()) }) {
             traced("kafka connect", { setAttribute("messaging.system", "kafka"); setAttribute("messaging.destination.name", EVENTS_TOPIC) }) { connect() }
             traced("json warmup", {}) { warmUpJson(runId) }
@@ -45,7 +51,11 @@ class PublishRun(
     private fun connect() {
         val started = System.nanoTime()
         val partitions = kafka.partitionsFor(EVENTS_TOPIC).size
-        log.info("Connected to Kafka in {} ms ({} has {} partitions)", elapsedMs(started), EVENTS_TOPIC, partitions)
+        val ms = elapsedMs(started)
+        log.atInfo()
+            .addKeyValue("kafka_connect_ms", ms)
+            .addKeyValue("partitions", partitions)
+            .log("Connected to Kafka in {} ms ({} has {} partitions)", ms, EVENTS_TOPIC, partitions)
     }
 
     // The first serialization sets up Jackson and its Kotlin module, which took about
@@ -53,7 +63,8 @@ class PublishRun(
     private fun warmUpJson(runId: UUID) {
         val started = System.nanoTime()
         json.writeValueAsString(newEvent(runId, sequence = 0))
-        log.info("Warmed up JSON serialization in {} ms", elapsedMs(started))
+        val ms = elapsedMs(started)
+        log.atInfo().addKeyValue("json_warmup_ms", ms).log("Warmed up JSON serialization in {} ms", ms)
     }
 
     private fun elapsedMs(startedNanos: Long) = (System.nanoTime() - startedNanos) / 1_000_000
@@ -79,7 +90,10 @@ class PublishRun(
         // Fail the run (and the Naisjob) unless the broker acknowledged every record.
         val results = sends.map { it.get(30, TimeUnit.SECONDS) }
         val partitions = results.groupingBy { it.recordMetadata.partition() }.eachCount().toSortedMap()
-        log.info("Published {} events for run {} to {} (records per partition: {})", results.size, runId, EVENTS_TOPIC, partitions)
+        log.atInfo()
+            .addKeyValue("events", results.size)
+            .addKeyValue("records_per_partition", partitions)
+            .log("Published {} events for run {} to {} (records per partition: {})", results.size, runId, EVENTS_TOPIC, partitions)
     }
 
     private fun newEvent(runId: UUID, sequence: Int) = KafkaEvent(

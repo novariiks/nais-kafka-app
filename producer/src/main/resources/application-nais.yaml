@@ -11,3 +11,9 @@ spring:
       trust-store-location: file:${KAFKA_TRUSTSTORE_PATH}
       trust-store-type: JKS
       trust-store-password: ${KAFKA_CREDSTORE_PASSWORD}
+logging:
+  structured:
+    # One JSON object per line for Loki: multi-line messages stay one record, and the
+    # agent's trace_id/span_id (MDC) and addKeyValue() fields become JSON fields.
+    format:
+      console: logstash
