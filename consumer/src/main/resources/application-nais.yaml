@@ -17,3 +17,9 @@ consumer:
     # Tempo for the test environment, from tracesDataSource.byEnvironment.test in
     # https://grafana.novari.cloud.nais.io/api/plugins/nais-apm-app/settings
     tempo-datasource: ${GRAFANA_TEMPO_DATASOURCE:P39EF045B9F172D65}
+logging:
+  structured:
+    # One JSON object per line for Loki: multi-line messages stay one record, and the
+    # agent's trace_id/span_id (MDC) and addKeyValue() fields become JSON fields.
+    format:
+      console: logstash

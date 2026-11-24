@@ -12,6 +12,7 @@ import org.springframework.kafka.listener.AbstractConsumerSeekAware
 import org.springframework.kafka.listener.ConsumerSeekAware.ConsumerSeekCallback
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
+import java.time.Duration
 import java.time.Instant
 
 @Component
@@ -31,7 +32,10 @@ class EventListener(
         if (assignments.isEmpty()) return
         val perPartition = (RecentEvents.CAPACITY + assignments.size - 1) / assignments.size
         assignments.keys.forEach { callback.seekRelative(it.topic(), it.partition(), -perPartition.toLong(), false) }
-        log.info("Assigned {}; replaying up to {} records per partition", assignments.keys, perPartition)
+        log.atInfo()
+            .addKeyValue("partitions", assignments.keys.map { it.partition() }.sorted())
+            .addKeyValue("replay_per_partition", perPartition)
+            .log("Assigned {}; replaying up to {} records per partition", assignments.keys, perPartition)
     }
 
     // The agent continues the producer's trace from the record headers,
@@ -48,7 +52,19 @@ class EventListener(
             consumedAt = Instant.now(),
             traceId = traceId,
         )
-        if (recent.add(consumed)) live.publish(consumed)
-        log.debug("Consumed {} from partition {} offset {} (trace {})", event.id, record.partition(), record.offset(), traceId)
+        val isNew = recent.add(consumed)
+        if (isNew) live.publish(consumed)
+        // One line per event: about 10 every two minutes. The agent adds trace_id and span_id
+        // of this process span to the MDC, so each line links to its trace.
+        log.atInfo()
+            .addKeyValue("event_id", event.id)
+            .addKeyValue("run_id", event.runId)
+            .addKeyValue("device_id", event.deviceId)
+            .addKeyValue("partition", record.partition())
+            .addKeyValue("offset", record.offset())
+            .addKeyValue("latency_ms", Duration.between(event.producedAt, consumed.consumedAt).toMillis())
+            // false when replaying records after a partition assignment
+            .addKeyValue("new", isNew)
+            .log("Consumed {} from partition {} offset {}", event.deviceId, record.partition(), record.offset())
     }
 }
