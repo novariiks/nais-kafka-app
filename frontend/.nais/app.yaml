@@ -21,6 +21,11 @@ spec:
   env:
     - name: BACKEND_HOST
       value: nais-kafka-consumer
+  # Faro: Nais writes the telemetry collector URL and app name/version here, and
+  # the app loads it at runtime. https://docs.novari.cloud.nais.io/observability/frontend/
+  frontend:
+    generatedConfig:
+      mountPath: /usr/share/nginx/html/js/nais.js
   accessPolicy:
     outbound:
       rules:

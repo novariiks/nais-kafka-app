@@ -9,6 +9,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@grafana/faro-web-sdk": "^2.15.0",
+    "@grafana/faro-web-tracing": "^2.15.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

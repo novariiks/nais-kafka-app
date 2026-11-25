@@ -1,6 +1,8 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { ErrorBoundary } from './errors';
 import { latencyMs, mergeEvents, traceUrl, type ConsumedEvent, type Info } from './events';
+import { loadNaisConfig } from './naisConfig';
 import './style.css';
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -121,4 +123,9 @@ function App() {
   </div>;
 }
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+// Start Faro in parallel with the first render, only where Nais provides its config.
+void loadNaisConfig().then(async nais => {
+  if (nais) (await import('./telemetry')).startTelemetry(nais);
+});
+
+createRoot(document.getElementById('root')!).render(<StrictMode><ErrorBoundary><App /></ErrorBoundary></StrictMode>);
