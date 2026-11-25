@@ -96,7 +96,9 @@ links.
 
 4. **Frontend.** Nginx serves the React app and proxies `/api` to the consumer,
    with buffering off for the event stream. Browsers deduplicate by event id and
-   reconcile with `/api/events` every ten seconds.
+   reconcile with `/api/events` every ten seconds. On NAIS the app also runs
+   [Grafana Faro](https://grafana.com/oss/faro/) (see
+   [Frontend telemetry](#frontend-telemetry)).
 
 | Endpoint (consumer) | Purpose |
 | --- | --- |
@@ -134,7 +136,7 @@ Team `flais`, environment `test`, Kafka pool `novari-test`.
 | `.nais/topic.yaml` | Topic `nais-kafka-events` (`flais.nais-kafka-events` for clients) with write access for the producer and read access for the consumer |
 | `producer/.nais/naisjob.yaml` | Naisjob, schedule `*/2 * * * *`, `concurrencyPolicy: Forbid` |
 | `consumer/.nais/app.yaml` | Application without ingress; only the frontend may call it |
-| `frontend/.nais/app.yaml` | Application with ingress <https://nais-kafka.test.novari.cloud.nais.io> |
+| `frontend/.nais/app.yaml` | Application with ingress <https://nais-kafka.test.novari.cloud.nais.io> and generated Faro config |
 
 Kafka credentials come from the variables NAIS injects (`KAFKA_BROKERS`,
 `KAFKA_KEYSTORE_PATH`, `KAFKA_TRUSTSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`),
@@ -148,6 +150,26 @@ Each environment has its own; find them under `tracesDataSource.byEnvironment`
 in <https://grafana.novari.cloud.nais.io/api/plugins/nais-apm-app/settings>. The
 `nais` profile defaults to the one for `test`. For another environment, set
 `GRAFANA_TEMPO_DATASOURCE` in the consumer's manifest.
+
+### Frontend telemetry
+
+The browser app reports to Nais APM with
+[Grafana Faro](https://docs.novari.cloud.nais.io/observability/frontend/): Web
+Vitals, JavaScript errors (including rendering errors, through an error
+boundary) and browser traces.
+
+- **Config.** `spec.frontend.generatedConfig` makes Nais write `/js/nais.js`
+  with the collector URL and the app's name, namespace and version. The app
+  loads it at runtime. Locally the file does not exist, so Faro stays off and
+  its code is never downloaded: it is a separate bundle chunk.
+- **Traces.** Faro adds a `traceparent` header to `/api` requests, so a trace
+  runs from the browser through nginx (its access log gets the `trace_id`) to
+  the consumer's HTTP span. The live event stream is not traced, because
+  `EventSource` cannot set headers. Each event's own trace, from the job through
+  Kafka, is separate and opens from the event's trace link.
+
+Look under the Frontend tab of `nais-kafka-frontend` in
+[Nais APM](https://grafana.novari.cloud.nais.io/a/nais-apm-app/services).
 
 ### Logs
 
@@ -211,6 +233,9 @@ nais apply frontend/.nais/app.yaml --environment test --team flais --set spec.im
   `process` spans. Compare `kafka connect` and `json warmup`, the cost of
   starting fresh in a cron job, with the time the events spend in Kafka, shown
   as milliseconds on each event in the UI.
+- In the browser's network tools, a request to `/api/events` carries a
+  `traceparent` header. Its trace in Tempo runs from the browser through the
+  consumer, and nginx's log line for the request has the same `trace_id`.
 - Restart the consumer pod. The feed refills from Kafka right away.
 - Look at consumer lag and Kafka client metrics on `/actuator/prometheus`.
 
