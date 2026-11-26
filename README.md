@@ -160,8 +160,10 @@ boundary) and browser traces.
 
 - **Config.** `spec.frontend.generatedConfig` makes Nais write `/js/nais.js`
   with the collector URL and the app's name, namespace and version. The app
-  loads it at runtime. Locally the file does not exist, so Faro stays off and
-  its code is never downloaded: it is a separate bundle chunk.
+  loads it at runtime. Novari's Nais currently leaves out the namespace and
+  writes an empty version; the app accepts that and omits both. Locally the file
+  does not exist, so Faro stays off and its code is never downloaded: it is a
+  separate bundle chunk.
 - **Traces.** Faro adds a `traceparent` header to `/api` requests, so a trace
   runs from the browser through nginx (its access log gets the `trace_id`) to
   the consumer's HTTP span. The live event stream is not traced, because
