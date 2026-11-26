@@ -1,6 +1,6 @@
 [tools]
 java = "temurin-21"
-node = "22"
+node = "26"
 rumdl = "0.3.5"
 
 [tasks."lint:md"]
