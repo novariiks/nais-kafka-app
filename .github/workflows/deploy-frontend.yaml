@@ -30,9 +30,9 @@ jobs:
     outputs:
       image: ${{ steps.image.outputs.image }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
       - name: Build and push image
-        uses: nais/docker-build-push@6394144a53cad0332745f24a8302f5efaf81719a # v1.0.0
+        uses: nais/docker-build-push@v1.0.0
         id: image
         with:
           team: flais
@@ -53,8 +53,8 @@ jobs:
     env:
       IMAGE: ${{ needs.build.outputs.image }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nais/setup@fb8692f65df9c904e2cdac5d395630ac876abdcf # v1.0.3
+      - uses: actions/checkout@v7.0.1
+      - uses: nais/setup@v1.0.3
         with:
           team: flais
       - name: Deploy frontend
