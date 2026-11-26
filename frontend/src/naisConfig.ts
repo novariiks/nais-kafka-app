@@ -5,17 +5,29 @@
  */
 export interface NaisConfig {
   telemetryCollectorURL: string;
-  app: { name: string; namespace: string; version: string };
+  // Nais does not always set namespace and version (seen with version: '').
+  app: { name: string; namespace?: string; version?: string };
 }
 
 export const NAIS_CONFIG_URL = '/js/nais.js';
 
+const optionalString = (value: unknown) => value === undefined || typeof value === 'string';
+
 function isNaisConfig(value: unknown): value is NaisConfig {
   const config = value as NaisConfig | undefined;
   return typeof config?.telemetryCollectorURL === 'string'
+    && config.telemetryCollectorURL !== ''
     && typeof config.app?.name === 'string'
-    && typeof config.app?.namespace === 'string'
-    && typeof config.app?.version === 'string';
+    && optionalString(config.app.namespace)
+    && optionalString(config.app.version);
+}
+
+/** Drops empty fields, so Faro does not report an empty version. */
+function withoutEmpty({ telemetryCollectorURL, app }: NaisConfig): NaisConfig {
+  return {
+    telemetryCollectorURL,
+    app: Object.fromEntries(Object.entries(app).filter(([, v]) => v !== '')) as NaisConfig['app'],
+  };
 }
 
 /** The Nais config, or null when the file is missing or malformed. */
@@ -24,7 +36,7 @@ export async function loadNaisConfig(
 ): Promise<NaisConfig | null> {
   try {
     const { default: config } = await load();
-    return isNaisConfig(config) ? config : null;
+    return isNaisConfig(config) ? withoutEmpty(config) : null;
   } catch {
     return null;
   }

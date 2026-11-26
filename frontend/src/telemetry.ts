@@ -8,7 +8,8 @@ import type { NaisConfig } from './naisConfig';
 export function startTelemetry(nais: NaisConfig): void {
   const faro = initializeFaro({
     url: nais.telemetryCollectorURL,
-    // name and namespace match .nais/app.yaml, so APM shows this next to the backends.
+    // name (and namespace, when Nais sets it) match .nais/app.yaml, so APM shows this
+    // next to the backends.
     app: nais.app,
     instrumentations: [
       ...getWebInstrumentations(),
