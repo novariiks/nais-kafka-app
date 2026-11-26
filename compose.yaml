@@ -56,6 +56,8 @@ services:
       <<: *otel
       KAFKA_BROKERS: kafka:19092
       OTEL_SERVICE_NAME: nais-kafka-consumer
+      # As on NAIS: no trace for every SSE heartbeat.
+      OTEL_INSTRUMENTATION_SPRING_SCHEDULING_ENABLED: "false"
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

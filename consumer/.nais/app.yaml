@@ -20,6 +20,10 @@ spec:
   env:
     - name: SPRING_PROFILES_ACTIVE
       value: nais
+    # Without this the agent makes a trace of every @Scheduled run: one per SSE
+    # heartbeat, every 15 seconds.
+    - name: OTEL_INSTRUMENTATION_SPRING_SCHEDULING_ENABLED
+      value: "false"
   kafka:
     pool: novari-test
   observability:

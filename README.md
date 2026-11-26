@@ -141,7 +141,9 @@ Team `flais`, environment `test`, Kafka pool `novari-test`.
 Kafka credentials come from the variables NAIS injects (`KAFKA_BROKERS`,
 `KAFKA_KEYSTORE_PATH`, `KAFKA_TRUSTSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`),
 read by the `nais` Spring profile. Both Kafka workloads enable
-`observability.autoInstrumentation` for Java. Traces are in
+`observability.autoInstrumentation` for Java. The consumer turns off the agent's
+Spring Scheduling instrumentation, which would otherwise record a trace for
+every event stream heartbeat (every 15 seconds). Traces are in
 [Grafana](https://grafana.novari.cloud.nais.io/explore), for example with
 `{resource.service.name="nais-kafka-consumer"}`.
 
