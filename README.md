@@ -165,10 +165,15 @@ boundary) and browser traces.
   does not exist, so Faro stays off and its code is never downloaded: it is a
   separate bundle chunk.
 - **Traces.** Faro adds a `traceparent` header to `/api` requests, so a trace
-  runs from the browser through nginx (its access log gets the `trace_id`) to
-  the consumer's HTTP span. The live event stream is not traced, because
+  runs from the browser through the ingress (`haproxy-ingress` spans) to the
+  consumer's HTTP span. Nginx creates no spans; its access log line for the
+  request carries the `trace_id`. The live event stream is not traced, because
   `EventSource` cannot set headers. Each event's own trace, from the job through
   Kafka, is separate and opens from the event's trace link.
+- **Data sent.** Besides measurements, errors and spans, Faro sends browser
+  metadata with each batch: user agent, browser language, window size, page URL
+  and a random session id. The page shows no personal data, so nothing is
+  filtered out before sending.
 
 Look under the Frontend tab of `nais-kafka-frontend` in
 [Nais APM](https://grafana.novari.cloud.nais.io/a/nais-apm-app/services).
@@ -187,7 +192,7 @@ Every line carries `level`, `logger_name` and `message`. The agent adds
 | --- | --- |
 | `nais-kafka-producer` | `run_id` on every line of a run; `kafka_connect_ms`, `json_warmup_ms`, `events`, `records_per_partition` |
 | `nais-kafka-consumer` | One line per event: `event_id`, `run_id`, `device_id`, `partition`, `offset`, `latency_ms`, `new` (false when replayed). `open_streams` when browsers connect or disconnect |
-| `nais-kafka-frontend` | Nginx access log, one line per request: `method`, `path`, `query`, `status`, `bytes`, `request_time_s`, `upstream_time_s`, `trace_id` (from a `traceparent` header). `level` is `ERROR` for 5xx and `WARN` for 4xx. No client IPs or user agents |
+| `nais-kafka-frontend` | Nginx access log, one line per request: `method`, `path`, `query`, `status`, `bytes`, `request_time_s`, `upstream_time_s`, `trace_id` (from a `traceparent` header). `level` is `ERROR` for 5xx and `WARN` for 4xx. No client IPs or user agents (Faro sends the user agent; see [Frontend telemetry](#frontend-telemetry)) |
 
 Example queries in [Grafana](https://grafana.novari.cloud.nais.io/explore) with
 Loki:
@@ -237,7 +242,10 @@ nais apply frontend/.nais/app.yaml --environment test --team flais --set spec.im
   as milliseconds on each event in the UI.
 - In the browser's network tools, a request to `/api/events` carries a
   `traceparent` header. Its trace in Tempo runs from the browser through the
-  consumer, and nginx's log line for the request has the same `trace_id`.
+  ingress to the consumer, and nginx's log line for the request has the same
+  `trace_id`.
+- In Nais APM, open the Frontend tab of `nais-kafka-frontend`. Web Vitals such
+  as LCP and CLS are sent when the tab is hidden, so switch tabs once.
 - Restart the consumer pod. The feed refills from Kafka right away.
 - Look at consumer lag and Kafka client metrics on `/actuator/prometheus`.
 
