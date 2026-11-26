@@ -1,4 +1,4 @@
-FROM gradle:8.14.3-jdk21 AS build
+FROM gradle:9.9.2-jdk21 AS build
 WORKDIR /workspace
 COPY settings.gradle.kts build.gradle.kts ./
 COPY gradle/libs.versions.toml gradle/libs.versions.toml
